@@ -51,12 +51,10 @@ def make_train_set(train_data, test_data, sampling_freq, num_classes):
     for i in range(num_classes):
         for k in range(test_each_data_numbers):
             testlabel[k + (test_each_data_numbers * i), i] = 1
-
+    traindata = np.abs(traindata)
+    testdata = np.abs(testdata)
     return traindata, trainlabel, testdata, testlabel
 
 
 if __name__ == "__main__":
     print("Hello")
-    import os
-    import pandas as pd
-    import numpy as np

@@ -31,8 +31,8 @@ def moving_avg(train_data, test_data, window, overlap, ch_height = 6, avg_width 
     test_data_numbers  = (np.shape(test_data))[0]
     data_chanels       = (np.shape(train_data))[2]                          # 8
     data_per_set       = (np.shape(train_data))[1]                          # 100
-    train_total_windows= int((data_per_set - window)/(window - overlap))    # must win > ovl
-    test_total_windows = int((data_per_set - window) / (window - overlap))  # must win > ovl
+    train_total_windows= int((data_per_set - window)/(window - overlap) + 1)    # must win > ovl
+    test_total_windows = int((data_per_set - window) / (window - overlap) + 1)  # must win > ovl
     avg_seg       = []
     train_all_avg = []
     test_all_avg = []
@@ -64,17 +64,17 @@ def moving_avg(train_data, test_data, window, overlap, ch_height = 6, avg_width 
                 train_image[num,
                             image_height - ch_height - (ch * ch_height) : image_height - (ch * ch_height),
                             avg_width * len : avg_width * len + avg_width] = train_all_avg[avg_len]
-                avg_len += 1
-        if(num%(train_data_numbers*0.1) == 0):
+                avg_len += 1                               # 평균값이 들어있는 배열을 한칸씩 shift
+        if(num%(train_data_numbers*0.1) == 0):             # 10% 증가량을 감지하기 위한 0.1
             print("train : " ,percent,"%")
-            percent += 10
-    avg_len = 0
+            percent += 10                                  # 10%씩 증가
+    avg_len = 0                                            # avg길이를 초기화
 
 
 
     for i in range(test_data_numbers):
         for j in range(data_chanels):
-            for k in range(test_total_windows):                        # 전체 윈도우 수
+            for k in range(test_total_windows):             # 전체 윈도우 수
                 for x in range(window):
                     element_sum += test_data[i][k * (window - overlap) + x][j]
                 average = element_sum / window
@@ -95,10 +95,12 @@ def moving_avg(train_data, test_data, window, overlap, ch_height = 6, avg_width 
             print("test : ", percent, "%")
             percent += 10
 
-    plt.imshow(train_image[0,:,:])
-    plt.show()
+    #plt.imshow(train_image[0,:,:])
+    #plt.show()
     train_image = train_image.reshape(train_data_numbers, image_height, image_width, 1)
     test_image = test_image.reshape(test_data_numbers, image_height, image_width, 1)
+    print("train : ", np.shape(train_image))
+    print("test : ", np.shape(test_image))
 
     del avg_len, element_sum, average, train_all_avg, avg_seg, train_data, test_data
     return train_image, test_image, image_height, image_width
@@ -115,6 +117,7 @@ def fft(train_data, test_data, ch_height = 6, fre_width = 1):
 
     FFT를 이용한 주파수 분석
     """
+    print("fft preprocessing..")
     train_data_numbers = (np.shape(train_data))[0]
     test_data_numbers = (np.shape(test_data))[0]
     data_chanels = (np.shape(train_data))[2]  # 8
@@ -131,7 +134,7 @@ def fft(train_data, test_data, ch_height = 6, fre_width = 1):
         for ch in range(data_chanels):
             train_fft = fft(train_data[num, :, ch])
             fft_norm  = np.abs(train_fft)
-            for feq in range(int(data_per_set/2)):
+            for feq in range(image_width):
                 train_image[num,
                             image_height - ch_height - (ch * ch_height): image_height - (ch * ch_height),
                             feq * fre_width: feq * fre_width + fre_width] = fft_norm[feq]
@@ -141,7 +144,7 @@ def fft(train_data, test_data, ch_height = 6, fre_width = 1):
         for ch in range(data_chanels):
             test_fft = fft(test_data[num, :, ch])
             fft_norm = np.abs(test_fft)
-            for f in range(int(data_per_set/2)):
+            for f in range(image_width):
                 test_image[num,
                            image_height - ch_height - (ch * ch_height): image_height - (ch * ch_height),
                            feq * fre_width : feq * fre_width + fre_width] = fft_norm[feq]
@@ -218,8 +221,8 @@ def stft(train_data, test_data, sampling_freq ,window, overlap, freq_height = 1,
             print("train : ", percent, "%")
             percent += 10
 
-    plt.imshow(train_image[0, :, :])
-    plt.show()
+    #plt.imshow(train_image[0, :, :])
+    #plt.show()
 
     # CNN학습을 위한 4-Dimension 데이터 형성
     train_image = train_image.reshape(train_data_numbers, image_height, image_width, 1)
@@ -227,3 +230,96 @@ def stft(train_data, test_data, sampling_freq ,window, overlap, freq_height = 1,
     input_shape = (image_height, image_width)
 
     return train_image, test_image, image_height, image_width
+
+
+
+
+def validation(train_data, train_label, num_classes = 4, train_percent = 0.9):
+    """
+    :param train_data: validation 데이터를 추출할 train data
+    :param train_label: validation 데티어를 추출할 train label
+    :param num_classes: class 개수
+    :param val_percent: validation 비율
+    :return: 학습데이터와 validation데이터 그리고 label값 리턴
+    """
+    print("validation dataset setting..")
+    train_data_per_class = int((np.shape(train_data))[0] / num_classes) # 2600
+    train_num = int(((np.shape(train_data))[0] * train_percent))                  # 학습 데이터 총 개수 9360
+    train_per_num = int(train_num/num_classes)                          # 동작당 학습 데이터 총 개수 2340
+
+    val_num   = int((np.shape(train_data))[0] * (1 - train_percent)) + 1    # validation 총 개수
+    val_data_per_class = int(val_num / num_classes)
+
+    input_height = (np.shape(train_data))[1]
+    input_width  = (np.shape(train_data))[2]
+    print("train_data : ", (np.shape(train_data))[0])
+    print("val_data_per_class", val_data_per_class)                     # 259
+    print("val_num", val_num)
+    print(input_height)
+    print(input_width)
+
+
+    val_label = np.zeros((val_num, num_classes), np.float32)
+    trn_label = np.zeros((train_num, num_classes), np.float32)
+
+    val_data = np.zeros((val_num, input_height, input_width, 1), np.float32)
+    trn_data = np.zeros((train_num, input_height, input_width, 1), np.float32)
+
+
+
+    print("train data shape check : ", np.shape(train_data))
+    print("validation label setting..")
+    for class_num in range(num_classes):                        # 4
+        for data_num in range(train_per_num):            # 2340
+            for class_num_x in range(num_classes):
+                trn_label[data_num + train_per_num * class_num,
+                          class_num_x] = \
+                train_label[data_num + train_data_per_class * class_num,
+                            class_num_x]
+
+    for class_num in range(num_classes):                        # 4
+        for data_num in range(val_data_per_class):              # 260
+            for class_num_x in range(num_classes):
+                val_label[data_num + val_data_per_class * class_num,
+                            class_num_x] = \
+                train_label[data_num + train_data_per_class * (class_num+1) - val_data_per_class,
+                            class_num_x]
+
+
+
+    print("validation data setting..")
+    for class_num in range(num_classes):                        # 4
+        for data_num in range(train_per_num):            # 2340
+            for height in range(input_height):
+                for width in range(input_width):
+                    trn_data[data_num + train_per_num * class_num,
+                            height,
+                            width,
+                            :] = \
+                    train_data[data_num + (train_data_per_class) * class_num,
+                               height,
+                               width,
+                               :]
+
+    for class_num in range(num_classes):                        # 4
+        for data_num in range(val_data_per_class):              # 2600
+            for height in range(input_height):
+                for width in range(input_width):
+                    val_data[data_num +  val_data_per_class * class_num,
+                             height,
+                             width,
+                             :] = \
+                    train_data[data_num + train_data_per_class * (class_num + 1) - val_data_per_class,
+                                height,
+                                width,
+                                :]
+
+
+
+
+    print("val_label : ", np.shape(val_label))
+    print("val_data : ", np.shape(val_data))
+
+    #return trn_data, trn_label, val_data, val_label
+    return train_data, train_label, val_data, val_label
+

@@ -13,3 +13,6 @@ CNN의 가장 기본적인 모델을 활용
 데이터 사이즈가 50X50을 기준으로 오버피팅이 발생되지 않는 조건을 기본 조건으로 만들어놈
 
 데이터 모델 변경 시 train loss, validation loss를 비교해 overfitting 방지할것
+
+
+4. main에서 프로그램 실행
